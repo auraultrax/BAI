@@ -3,104 +3,317 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Supabase Secrets + Ollama AI</title>
+  <title>BAI — Aura X AI</title>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
-    body { background-color: #0f172a; color: #f8fafc; display: flex; justify-content: center; height: 100vh; padding: 20px; }
+    @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600&display=swap');
+
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Outfit', sans-serif; }
     
-    .chat-container { width: 100%; max-width: 800px; background: #1e293b; border-radius: 12px; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 10px 25px rgba(0,0,0,0.5); }
-    .chat-header { padding: 16px 24px; background: #0f172a; border-bottom: 1px solid #334155; display: flex; justify-content: space-between; align-items: center; }
-    .chat-header h2 { font-size: 1.1rem; font-weight: 600; color: #38bdf8; }
-    .status-badge { font-size: 0.75rem; padding: 4px 8px; border-radius: 12px; background: #334155; color: #94a3b8; }
-    
-    .chat-box { flex: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 16px; }
-    .message { max-width: 80%; padding: 12px 16px; border-radius: 8px; font-size: 0.95rem; line-height: 1.5; white-space: pre-wrap; word-break: break-word; }
-    .user-message { align-self: flex-end; background: #0284c7; color: #fff; border-bottom-right-radius: 2px; }
-    .ai-message { align-self: flex-start; background: #334155; color: #f1f5f9; border-bottom-left-radius: 2px; }
-    
-    .input-area { padding: 16px; background: #0f172a; border-top: 1px solid #334155; display: flex; gap: 10px; }
-    textarea { flex: 1; background: #1e293b; border: 1px solid #334155; border-radius: 8px; padding: 12px; color: #fff; resize: none; height: 50px; outline: none; }
-    textarea:focus { border-color: #38bdf8; }
-    button { background: #0284c7; color: white; border: none; padding: 0 20px; border-radius: 8px; font-weight: 600; cursor: pointer; transition: background 0.2s; }
-    button:hover { background: #0369a1; }
-    button:disabled { background: #475569; cursor: not-allowed; }
+    body {
+      background: radial-gradient(circle at top, #1a0b2e 0%, #090314 100%);
+      color: #f1f5f9;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      padding: 16px;
+    }
+
+    .aura-container {
+      width: 100%;
+      max-width: 850px;
+      height: 90vh;
+      background: rgba(18, 10, 35, 0.7);
+      backdrop-filter: blur(20px);
+      border: 1px solid rgba(168, 85, 247, 0.2);
+      border-radius: 20px;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      box-shadow: 0 0 40px rgba(168, 85, 247, 0.15), inset 0 0 20px rgba(168, 85, 247, 0.05);
+    }
+
+    .aura-header {
+      padding: 20px 24px;
+      background: rgba(26, 15, 48, 0.8);
+      border-bottom: 1px solid rgba(168, 85, 247, 0.2);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .ai-avatar {
+      width: 38px;
+      height: 38px;
+      background: linear-gradient(135deg, #a855f7, #3b82f6);
+      border-radius: 10px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      font-weight: 600;
+      color: white;
+      box-shadow: 0 0 15px rgba(168, 85, 247, 0.5);
+    }
+
+    .brand h1 {
+      font-size: 1.2rem;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+      background: linear-gradient(to right, #e879f9, #38bdf8);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .status-pill {
+      font-size: 0.75rem;
+      padding: 6px 12px;
+      border-radius: 20px;
+      background: rgba(168, 85, 247, 0.1);
+      border: 1px solid rgba(168, 85, 247, 0.3);
+      color: #d8b4fe;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .status-dot {
+      width: 6px;
+      height: 6px;
+      background: #a855f7;
+      border-radius: 50%;
+      box-shadow: 0 0 8px #a855f7;
+    }
+
+    .chat-stream {
+      flex: 1;
+      padding: 24px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .message {
+      max-width: 75%;
+      padding: 14px 18px;
+      border-radius: 14px;
+      font-size: 0.95rem;
+      line-height: 1.6;
+      white-space: pre-wrap;
+      word-break: break-word;
+      animation: fadeIn 0.3s ease;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .user-msg {
+      align-self: flex-end;
+      background: linear-gradient(135deg, #9333ea, #4f46e5);
+      color: #fff;
+      border-bottom-right-radius: 4px;
+      box-shadow: 0 4px 15px rgba(147, 51, 234, 0.3);
+    }
+
+    .ai-msg {
+      align-self: flex-start;
+      background: rgba(30, 20, 56, 0.6);
+      border: 1px solid rgba(168, 85, 247, 0.15);
+      color: #f3e8ff;
+      border-bottom-left-radius: 4px;
+    }
+
+    .input-dock {
+      padding: 20px 24px;
+      background: rgba(15, 8, 30, 0.9);
+      border-top: 1px solid rgba(168, 85, 247, 0.2);
+      display: flex;
+      gap: 12px;
+    }
+
+    textarea {
+      flex: 1;
+      background: rgba(26, 15, 48, 0.6);
+      border: 1px solid rgba(168, 85, 247, 0.25);
+      border-radius: 12px;
+      padding: 14px;
+      color: #fff;
+      resize: none;
+      height: 52px;
+      outline: none;
+      font-size: 0.95rem;
+      transition: all 0.3s;
+    }
+
+    textarea:focus {
+      border-color: #a855f7;
+      box-shadow: 0 0 15px rgba(168, 85, 247, 0.2);
+    }
+
+    .send-btn {
+      background: linear-gradient(135deg, #a855f7, #6366f1);
+      color: white;
+      border: none;
+      padding: 0 24px;
+      border-radius: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s;
+      box-shadow: 0 4px 15px rgba(168, 85, 247, 0.3);
+    }
+
+    .send-btn:hover:not(:disabled) {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(168, 85, 247, 0.5);
+    }
+
+    .send-btn:disabled {
+      background: #33244d;
+      color: #7c6f93;
+      cursor: not-allowed;
+      box-shadow: none;
+    }
   </style>
 </head>
 <body>
 
-<div class="chat-container">
-  <div class="chat-header">
-    <h2>Supabase Secrets + Ollama</h2>
-    <span id="statusBadge" class="status-badge">Hazır</span>
+<div class="aura-container">
+  <div class="aura-header">
+    <div class="brand">
+      <div class="ai-avatar">BAI</div>
+      <h1>BAI — Aura X</h1>
+    </div>
+    <div class="status-pill">
+      <div class="status-dot"></div>
+      <span id="statusText">Sistem Hazır</span>
+    </div>
   </div>
   
-  <div class="chat-box" id="chatBox">
-    <div class="message ai-message">Merhaba! Soru sormaya başlayabilirsin.</div>
+  <div class="chat-stream" id="chatStream">
+    <div class="message ai-msg">Selam! Ben BAI. Aura X modunda çalışıyorum, bana dilediğini sorabilirsin.</div>
   </div>
   
-  <div class="input-area">
-    <textarea id="userInput" placeholder="Mesajınızı yazın... (Enter ile gönder)"></textarea>
-    <button id="sendBtn" onclick="sendMessage()">Gönder</button>
+  <div class="input-dock">
+    <textarea id="userInput" placeholder="BAI'ye bir şeyler yaz... (Enter ile gönder)"></textarea>
+    <button class="send-btn" id="sendBtn" onclick="sendToBAI()">Gönder</button>
   </div>
 </div>
 
 <script>
+  // Supabase Bağlantısı
   const SUPABASE_URL = 'https://bjzgbqazezjboskcaqrh.supabase.co';
   const SUPABASE_KEY = 'sb_publishable_u9ctUFj6Hu9qBrXShO5jaw__Pw-aGux';
   const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
+  // Cloudflare Tünel Adresi (Terminalden aldığın aktif adres)
+  const TINNEL_URL = 'https://levels-insulation-temporal-holdem.trycloudflare.com/api/generate';
+
+  // Enter tuşu ile gönderme
   document.getElementById('userInput').addEventListener('keydown', function(e) {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
-      sendMessage();
+      sendToBAI();
     }
   });
 
-  async function sendMessage() {
+  async function sendToBAI() {
     const inputField = document.getElementById('userInput');
-    const chatBox = document.getElementById('chatBox');
+    const chatStream = document.getElementById('chatStream');
     const sendBtn = document.getElementById('sendBtn');
-    const statusBadge = document.getElementById('statusBadge');
+    const statusText = document.getElementById('statusText');
     
     const prompt = inputField.value.trim();
     if (!prompt) return;
 
-    appendMessage(prompt, 'user-message');
+    // Arayüzü kilitle ve kullanıcı mesajını ekle
+    appendMsg(prompt, 'user-msg');
     inputField.value = '';
     sendBtn.disabled = true;
-    statusBadge.textContent = 'Yapay zeka düşünüyor...';
+    statusText.textContent = 'BAI düşünüyor...';
 
-    const aiMessageDiv = appendMessage('...', 'ai-message');
+    // Boş AI yanıt kutusu oluştur
+    const aiBubble = appendMsg('', 'ai-msg');
+    let fullResponse = '';
 
     try {
-      // Supabase Edge Function'ı tetikle (Secret aratingi arka planda yönetilir)
-      const { data, error } = await supabase.functions.invoke('chat', {
-        body: { prompt: prompt }
+      const response = await fetch(TINNEL_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: 'llama3',
+          prompt: prompt,
+          stream: true
+        })
       });
 
-      if (error) throw error;
+      if (!response.ok) throw new Error('Tünel bağlantısı kurulamadı. Terminalde cloudflared tünelinin açık olduğundan emin ol.');
 
-      aiMessageDiv.textContent = data.response;
-      statusBadge.textContent = 'Hazır ve Kaydedildi';
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder('utf-8');
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        const chunk = decoder.decode(value, { stream: true });
+        const lines = chunk.split('\n').filter(line => line.trim() !== '');
+
+        for (const line of lines) {
+          try {
+            const parsed = JSON.parse(line);
+            if (parsed.response) {
+              fullResponse += parsed.response;
+              aiBubble.textContent = fullResponse;
+              chatStream.scrollTop = chatStream.scrollHeight;
+            }
+          } catch (e) {
+            console.error('JSON parse hatası:', e);
+          }
+        }
+      }
+
+      statusText.textContent = 'Supabase\'e kaydediliyor...';
+
+      // Supabase'e kayıt at
+      const { error } = await supabase
+        .from('ai_logs')
+        .insert([{ prompt: prompt, response: fullResponse }]);
+
+      if (error) {
+        console.error('Supabase kayıt hatası:', error.message);
+        statusText.textContent = 'Kayıt Başarısız';
+      } else {
+        statusText.textContent = 'Sistem Hazır';
+      }
 
     } catch (err) {
-      aiMessageDiv.textContent = 'Hata: ' + (err.message || 'Sunucuya ulaşılamadı.');
-      statusBadge.textContent = 'Hata';
+      aiBubble.textContent = 'Bağlantı Hatası: ' + err.message;
+      statusText.textContent = 'Hata Oluştu';
     } finally {
+      // Gönder butonunu kesinlikle tekrar aktif et (butonun çalışmama sorununu çözer)
       sendBtn.disabled = false;
-      chatBox.scrollTop = chatBox.scrollHeight;
+      inputField.focus();
+      chatStream.scrollTop = chatStream.scrollHeight;
     }
   }
 
-  function appendMessage(text, className) {
-    const chatBox = document.getElementById('chatBox');
-    const messageDiv = document.createElement('div');
-    messageDiv.className = `message ${className}`;
-    messageDiv.textContent = text;
-    chatBox.appendChild(messageDiv);
-    chatBox.scrollTop = chatBox.scrollHeight;
-    return messageDiv;
+  function appendMsg(text, className) {
+    const chatStream = document.getElementById('chatStream');
+    const div = document.createElement('div');
+    div.className = `message ${className}`;
+    div.textContent = text;
+    chatStream.appendChild(div);
+    chatStream.scrollTop = chatStream.scrollHeight;
+    return div;
   }
 </script>
 
