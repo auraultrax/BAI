@@ -42,7 +42,7 @@
   </div>
   
   <div class="chat-stream" id="chatStream">
-    <div class="message ai-msg">Selam! Ben BAI. Supabase Edge Function üzerinden hazırım.</div>
+    <div class="message ai-msg">Selam! Ben BAI. Mesaj göndermeye hazırım.</div>
   </div>
   
   <div class="input-dock">
@@ -54,9 +54,6 @@
 <script>
   const SUPABASE_URL = 'https://bjzgbqazezjboskcaqrh.supabase.co';
   const SUPABASE_KEY = 'sb_publishable_u9ctUFj6Hu9qBrXShO5jaw__Pw-aGux';
-  const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-
-  // Supabase Edge Function Uç Noktası
   const FUNCTION_URL = 'https://bjzgbqazezjboskcaqrh.supabase.co/functions/v1/chat';
 
   document.getElementById('userInput').addEventListener('keydown', function(e) {
@@ -80,10 +77,9 @@
     sendBtn.disabled = true;
     statusText.textContent = 'BAI düşünüyor...';
 
-    const aiBubble = appendMsg('', 'ai-msg');
+    const aiBubble = appendMsg('...', 'ai-msg');
 
     try {
-      // Doğrudan fetch ile Edge Function'a istek atıyoruz
       const response = await fetch(FUNCTION_URL, {
         method: 'POST',
         headers: {
@@ -93,15 +89,25 @@
         body: JSON.stringify({ prompt: prompt })
       });
 
-      if (!response.ok) throw new Error('Fonksiyon çağrı hatası.');
+      const textResult = await response.text();
+      let data;
+      try {
+        data = JSON.parse(textResult);
+      } catch (e) {
+        throw new Error('Sunucudan geçersiz yanıt: ' + textResult);
+      }
 
-      const data = await response.json();
-      aiBubble.textContent = data.response || data.error || 'Yanıt alınamadı.';
+      if (!response.ok) {
+        throw new Error(data.error || 'Sunucu hatası (Kod: ' + response.status + ')');
+      }
+
+      aiBubble.textContent = data.response || 'Yanıt boş döndü.';
       statusText.textContent = 'Çevrimiçi';
 
     } catch (err) {
-      aiBubble.textContent = 'Hata: ' + (err.message || 'Bağlantı kurulamadı.');
-      statusText.textContent = 'Bağlantı Hatası';
+      console.error(err);
+      aiBubble.textContent = '❌ Hata: ' + err.message;
+      statusText.textContent = 'Hata Oluştu';
     } finally {
       sendBtn.disabled = false;
       inputField.focus();
