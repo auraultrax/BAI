@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Ollama & Supabase Streaming Chat</title>
+  <title>Supabase Secrets + Ollama AI</title>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
@@ -31,28 +31,24 @@
 
 <div class="chat-container">
   <div class="chat-header">
-    <h2>Cloudflare Tunnel + Ollama AI</h2>
+    <h2>Supabase Secrets + Ollama</h2>
     <span id="statusBadge" class="status-badge">Hazır</span>
   </div>
   
   <div class="chat-box" id="chatBox">
-    <div class="message ai-message">Merhaba! Tünel bağlantısı hazır. Sorunu yazabilirsin.</div>
+    <div class="message ai-message">Merhaba! Soru sormaya başlayabilirsin.</div>
   </div>
   
   <div class="input-area">
-    <textarea id="userInput" placeholder="Mesajınızı yazın... (Göndermek için Enter'a basın)"></textarea>
+    <textarea id="userInput" placeholder="Mesajınızı yazın... (Enter ile gönder)"></textarea>
     <button id="sendBtn" onclick="sendMessage()">Gönder</button>
   </div>
 </div>
 
 <script>
-  // Supabase İstemcisi
   const SUPABASE_URL = 'https://bjzgbqazezjboskcaqrh.supabase.co';
   const SUPABASE_KEY = 'sb_publishable_u9ctUFj6Hu9qBrXShO5jaw__Pw-aGux';
   const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-
-  // Cloudflare Tunnel URL'si (Verdiğin tünel adresine göre ayarlandı)
-  const OLLAMA_TUNNEL_URL = 'https://levels-insulation-temporal-holdem.trycloudflare.com/api/generate';
 
   document.getElementById('userInput').addEventListener('keydown', function(e) {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -73,65 +69,24 @@
     appendMessage(prompt, 'user-message');
     inputField.value = '';
     sendBtn.disabled = true;
-    statusBadge.textContent = 'Yazıyor...';
+    statusBadge.textContent = 'Yapay zeka düşünüyor...';
 
-    const aiMessageDiv = appendMessage('', 'ai-message');
-    let fullResponse = '';
+    const aiMessageDiv = appendMessage('...', 'ai-message');
 
     try {
-      const response = await fetch(OLLAMA_TUNNEL_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          model: 'llama3',
-          prompt: prompt,
-          stream: true
-        })
+      // Supabase Edge Function'ı tetikle (Secret aratingi arka planda yönetilir)
+      const { data, error } = await supabase.functions.invoke('chat', {
+        body: { prompt: prompt }
       });
 
-      if (!response.ok) throw new Error('Cloudflare Tüneline erişilemedi. Terminalde tünelin açık olduğundan emin ol.');
+      if (error) throw error;
 
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder('utf-8');
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        const chunk = decoder.decode(value, { stream: true });
-        const lines = chunk.split('\n').filter(line => line.trim() !== '');
-
-        for (const line of lines) {
-          try {
-            const parsed = JSON.parse(line);
-            if (parsed.response) {
-              fullResponse += parsed.response;
-              aiMessageDiv.textContent = fullResponse;
-              chatBox.scrollTop = chatBox.scrollHeight;
-            }
-          } catch (e) {
-            console.error('Parçalama hatası:', e);
-          }
-        }
-      }
-
-      statusBadge.textContent = "Supabase'e kaydediliyor...";
-
-      // Supabase veritabanına kayıt
-      const { error } = await supabase
-        .from('ai_logs')
-        .insert([{ prompt: prompt, response: fullResponse }]);
-
-      if (error) {
-        console.error('Supabase Kayıt Hatası:', error.message);
-        statusBadge.textContent = 'Kayıt Hatası';
-      } else {
-        statusBadge.textContent = 'Hazır';
-      }
+      aiMessageDiv.textContent = data.response;
+      statusBadge.textContent = 'Hazır ve Kaydedildi';
 
     } catch (err) {
-      aiMessageDiv.textContent = 'Hata: ' + err.message;
-      statusBadge.textContent = 'Bağlantı Hatası';
+      aiMessageDiv.textContent = 'Hata: ' + (err.message || 'Sunucuya ulaşılamadı.');
+      statusBadge.textContent = 'Hata';
     } finally {
       sendBtn.disabled = false;
       chatBox.scrollTop = chatBox.scrollHeight;
