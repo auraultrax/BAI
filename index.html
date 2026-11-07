@@ -3,10 +3,10 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>AI Studio - Ollama & Supabase</title>
+  <title>Ollama & Supabase Streaming Chat</title>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
     body { background-color: #0f172a; color: #f8fafc; display: flex; justify-content: center; height: 100vh; padding: 20px; }
     
     .chat-container { width: 100%; max-width: 800px; background: #1e293b; border-radius: 12px; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 10px 25px rgba(0,0,0,0.5); }
@@ -15,7 +15,7 @@
     .status-badge { font-size: 0.75rem; padding: 4px 8px; border-radius: 12px; background: #334155; color: #94a3b8; }
     
     .chat-box { flex: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 16px; }
-    .message { max-width: 80%; padding: 12px 16px; border-radius: 8px; font-size: 0.95rem; line-height: 1.5; white-space: pre-wrap; }
+    .message { max-width: 80%; padding: 12px 16px; border-radius: 8px; font-size: 0.95rem; line-height: 1.5; white-space: pre-wrap; word-break: break-word; }
     .user-message { align-self: flex-end; background: #0284c7; color: #fff; border-bottom-right-radius: 2px; }
     .ai-message { align-self: flex-start; background: #334155; color: #f1f5f9; border-bottom-left-radius: 2px; }
     
@@ -31,29 +31,35 @@
 
 <div class="chat-container">
   <div class="chat-header">
-    <h2>Yapay Zeka Asistanı</h2>
+    <h2>Cloudflare Tunnel + Ollama AI</h2>
     <span id="statusBadge" class="status-badge">Hazır</span>
   </div>
   
   <div class="chat-box" id="chatBox">
-    <div class="message ai-message">Merhaba! Size nasıl yardımcı olabilirim?</div>
+    <div class="message ai-message">Merhaba! Tünel bağlantısı hazır. Sorunu yazabilirsin.</div>
   </div>
   
   <div class="input-area">
-    <textarea id="userInput" placeholder="Bir mesaj yazın..."></textarea>
+    <textarea id="userInput" placeholder="Mesajınızı yazın... (Göndermek için Enter'a basın)"></textarea>
     <button id="sendBtn" onclick="sendMessage()">Gönder</button>
   </div>
 </div>
 
 <script>
-  // Supabase İstemcisi (Publishable key istemci tarafında güvenle kullanılabilir)
+  // Supabase İstemcisi
   const SUPABASE_URL = 'https://bjzgbqazezjboskcaqrh.supabase.co';
   const SUPABASE_KEY = 'sb_publishable_u9ctUFj6Hu9qBrXShO5jaw__Pw-aGux';
-  const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-  // ngrok ile aldığınız HTTPS adresini buraya ekleyin (örn: https://xxxx.ngrok-free.app/api/generate)
-  // Doğrudan localhost kullanıyorsanız tarayıcı güvenlik engelini kaldırmanız gerekir.
-  const OLLAMA_URL = 'http://localhost:11434/api/generate';
+  // Cloudflare Tunnel URL'si (Verdiğin tünel adresine göre ayarlandı)
+  const OLLAMA_TUNNEL_URL = 'https://levels-insulation-temporal-holdem.trycloudflare.com/api/generate';
+
+  document.getElementById('userInput').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      sendMessage();
+    }
+  });
 
   async function sendMessage() {
     const inputField = document.getElementById('userInput');
@@ -64,41 +70,68 @@
     const prompt = inputField.value.trim();
     if (!prompt) return;
 
-    // Kullanıcı Mesajını Ekle
     appendMessage(prompt, 'user-message');
     inputField.value = '';
     sendBtn.disabled = true;
-    statusBadge.textContent = 'Düşünüyor...';
+    statusBadge.textContent = 'Yazıyor...';
 
-    // AI Mesaj Alanı Oluştur
-    const aiMessageDiv = appendMessage('...', 'ai-message');
+    const aiMessageDiv = appendMessage('', 'ai-message');
+    let fullResponse = '';
 
     try {
-      const response = await fetch(OLLAMA_URL, {
+      const response = await fetch(OLLAMA_TUNNEL_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           model: 'llama3',
           prompt: prompt,
-          stream: false
+          stream: true
         })
       });
 
-      if (!response.ok) throw new Error('Ollama sunucusuna ulaşılamadı.');
+      if (!response.ok) throw new Error('Cloudflare Tüneline erişilemedi. Terminalde tünelin açık olduğundan emin ol.');
 
-      const data = await response.json();
-      const aiResponse = data.response;
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder('utf-8');
 
-      aiMessageDiv.textContent = aiResponse;
-      statusBadge.textContent = 'Veritabanına kaydediliyor...';
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
 
-      // Supabase Kayıt
-      await supabase.from('ai_logs').insert([{ prompt: prompt, response: aiResponse }]);
-      statusBadge.textContent = 'Hazır';
+        const chunk = decoder.decode(value, { stream: true });
+        const lines = chunk.split('\n').filter(line => line.trim() !== '');
+
+        for (const line of lines) {
+          try {
+            const parsed = JSON.parse(line);
+            if (parsed.response) {
+              fullResponse += parsed.response;
+              aiMessageDiv.textContent = fullResponse;
+              chatBox.scrollTop = chatBox.scrollHeight;
+            }
+          } catch (e) {
+            console.error('Parçalama hatası:', e);
+          }
+        }
+      }
+
+      statusBadge.textContent = "Supabase'e kaydediliyor...";
+
+      // Supabase veritabanına kayıt
+      const { error } = await supabase
+        .from('ai_logs')
+        .insert([{ prompt: prompt, response: fullResponse }]);
+
+      if (error) {
+        console.error('Supabase Kayıt Hatası:', error.message);
+        statusBadge.textContent = 'Kayıt Hatası';
+      } else {
+        statusBadge.textContent = 'Hazır';
+      }
 
     } catch (err) {
-      aiMessageDiv.textContent = 'Hata: ' + err.message + '\n(İpucu: ngrok adresi kullandığınızdan ve CORS ayarlarının yapıldığından emin olun.)';
-      statusBadge.textContent = 'Hata';
+      aiMessageDiv.textContent = 'Hata: ' + err.message;
+      statusBadge.textContent = 'Bağlantı Hatası';
     } finally {
       sendBtn.disabled = false;
       chatBox.scrollTop = chatBox.scrollHeight;
