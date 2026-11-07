@@ -37,12 +37,12 @@
     </div>
     <div class="status-pill">
       <div class="status-dot"></div>
-      <span id="statusText">Güvenli Mod</span>
+      <span id="statusText">Çevrimiçi</span>
     </div>
   </div>
   
   <div class="chat-stream" id="chatStream">
-    <div class="message ai-msg">Selam! Ben BAI. Supabase Secret üzerinden güvenle bağlıyım.</div>
+    <div class="message ai-msg">Selam! Ben BAI. Supabase Edge Function üzerinden hazırım.</div>
   </div>
   
   <div class="input-dock">
@@ -55,6 +55,9 @@
   const SUPABASE_URL = 'https://bjzgbqazezjboskcaqrh.supabase.co';
   const SUPABASE_KEY = 'sb_publishable_u9ctUFj6Hu9qBrXShO5jaw__Pw-aGux';
   const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+  // Supabase Edge Function Uç Noktası
+  const FUNCTION_URL = 'https://bjzgbqazezjboskcaqrh.supabase.co/functions/v1/chat';
 
   document.getElementById('userInput').addEventListener('keydown', function(e) {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -80,19 +83,25 @@
     const aiBubble = appendMsg('', 'ai-msg');
 
     try {
-      // Doğrudan tünel yerine Supabase Edge Function çağrılır (Secret arka planda çalışır)
-      const { data, error } = await supabase.functions.invoke('chat', {
-        body: { prompt: prompt }
+      // Doğrudan fetch ile Edge Function'a istek atıyoruz
+      const response = await fetch(FUNCTION_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${SUPABASE_KEY}`
+        },
+        body: JSON.stringify({ prompt: prompt })
       });
 
-      if (error) throw error;
+      if (!response.ok) throw new Error('Fonksiyon çağrı hatası.');
 
-      aiBubble.textContent = data.response;
-      statusText.textContent = 'Güvenli Mod';
+      const data = await response.json();
+      aiBubble.textContent = data.response || data.error || 'Yanıt alınamadı.';
+      statusText.textContent = 'Çevrimiçi';
 
     } catch (err) {
       aiBubble.textContent = 'Hata: ' + (err.message || 'Bağlantı kurulamadı.');
-      statusText.textContent = 'Hata';
+      statusText.textContent = 'Bağlantı Hatası';
     } finally {
       sendBtn.disabled = false;
       inputField.focus();
