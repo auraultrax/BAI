@@ -1,0 +1,651 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Beray AI (BAI)</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='18' fill='%230a0a0a'/><text x='50' y='66' font-size='38' font-family='Arial Black,sans-serif' font-weight='900' fill='%2300ff9d' text-anchor='middle'>BAI</text></svg>">
+  <style>
+    :root {
+      --bg: #07070a;
+      --surface: #111116;
+      --surface2: #1a1a22;
+      --border: #2a2a35;
+      --text: #e8e8ed;
+      --muted: #8b8b9a;
+      --accent: #00ff9d;
+      --accent-dim: #00cc7a;
+      --user-bg: #1e2a24;
+      --ai-bg: #15151c;
+      --warn: #ffb86b;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 12px 18px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-shrink: 0;
+    }
+    .logo {
+      width: 40px; height: 40px;
+      background: #0a0a0a;
+      border: 2px solid var(--accent);
+      border-radius: 11px;
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 900; font-size: 14px; color: var(--accent);
+    }
+    .brand h1 { font-size: 1.1rem; font-weight: 700; }
+    .brand span { font-size: 0.72rem; color: var(--muted); display: block; }
+    .status {
+      margin-left: auto;
+      display: flex; align-items: center; gap: 7px;
+      font-size: 0.78rem; color: var(--muted);
+    }
+    .status-dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: #666;
+      transition: background 0.3s;
+    }
+    .status-dot.online {
+      background: var(--accent);
+      box-shadow: 0 0 8px var(--accent);
+    }
+    .main { flex: 1; display: flex; overflow: hidden; }
+    .sidebar {
+      width: 300px;
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      display: flex; flex-direction: column;
+      flex-shrink: 0; overflow-y: auto;
+    }
+    .sidebar-section {
+      padding: 14px;
+      border-bottom: 1px solid var(--border);
+    }
+    .sidebar-section h3 {
+      font-size: 0.68rem;
+      text-transform: uppercase;
+      letter-spacing: 0.7px;
+      color: var(--muted);
+      margin-bottom: 9px;
+    }
+    .config-row {
+      display: flex; flex-direction: column; gap: 6px; margin-top: 7px;
+    }
+    .config-row label { font-size: 0.72rem; color: var(--muted); }
+    .config-row input {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 8px 10px;
+      border-radius: 8px;
+      font-size: 0.84rem;
+      outline: none;
+    }
+    .config-row input:focus { border-color: var(--accent); }
+    .btn {
+      background: var(--accent);
+      color: #000;
+      border: none;
+      padding: 9px 14px;
+      border-radius: 8px;
+      font-weight: 600;
+      font-size: 0.84rem;
+      cursor: pointer;
+      width: 100%;
+    }
+    .btn:hover { background: var(--accent-dim); }
+    .btn-outline {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text);
+      margin-top: 6px;
+    }
+    .btn-outline:hover { border-color: var(--accent); color: var(--accent); }
+    .btn-check {
+      background: #1a2a20;
+      border: 1px solid var(--accent);
+      color: var(--accent);
+      margin-top: 8px;
+    }
+    .chat-area { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+    .messages {
+      flex: 1; overflow-y: auto;
+      padding: 20px 16px;
+      display: flex; flex-direction: column; gap: 16px;
+    }
+    .msg {
+      max-width: 780px; width: 100%;
+      margin: 0 auto;
+      display: flex; gap: 10px;
+      animation: fadeIn 0.22s ease;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(5px); }
+      to { opacity: 1; transform: none; }
+    }
+    .msg.user { flex-direction: row-reverse; }
+    .avatar {
+      width: 34px; height: 34px;
+      border-radius: 9px;
+      flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.65rem; font-weight: 800;
+    }
+    .msg.user .avatar {
+      background: var(--user-bg);
+      color: var(--accent);
+      border: 1px solid #2a3d32;
+    }
+    .msg.ai .avatar {
+      background: #0a0a0a;
+      color: var(--accent);
+      border: 1px solid var(--accent);
+    }
+    .bubble {
+      background: var(--ai-bg);
+      border: 1px solid var(--border);
+      border-radius: 13px;
+      padding: 12px 14px;
+      font-size: 0.9rem;
+      line-height: 1.55;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+    .msg.user .bubble {
+      background: var(--user-bg);
+      border-color: #2a3d32;
+    }
+    .bubble strong { color: var(--accent); }
+    .input-area {
+      padding: 14px 16px 16px;
+      border-top: 1px solid var(--border);
+      background: var(--surface);
+      flex-shrink: 0;
+    }
+    .input-wrapper {
+      max-width: 780px;
+      margin: 0 auto;
+      display: flex; gap: 8px;
+      align-items: flex-end;
+    }
+    textarea {
+      flex: 1;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 11px 13px;
+      border-radius: 11px;
+      font-size: 0.93rem;
+      resize: none;
+      min-height: 46px;
+      max-height: 130px;
+      outline: none;
+      font-family: inherit;
+      line-height: 1.4;
+    }
+    textarea:focus { border-color: var(--accent); }
+    .send-btn {
+      width: 46px; height: 46px;
+      border-radius: 11px;
+      background: var(--accent);
+      border: none;
+      color: #000;
+      font-size: 1.15rem;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+    .send-btn:hover { background: var(--accent-dim); }
+    .send-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .hint {
+      max-width: 780px;
+      margin: 7px auto 0;
+      font-size: 0.7rem;
+      color: var(--muted);
+      text-align: center;
+    }
+    .typing { display: flex; gap: 4px; padding: 3px 0; }
+    .typing span {
+      width: 6px; height: 6px;
+      background: var(--accent);
+      border-radius: 50%;
+      animation: bounce 1.2s infinite;
+    }
+    .typing span:nth-child(2) { animation-delay: 0.15s; }
+    .typing span:nth-child(3) { animation-delay: 0.3s; }
+    @keyframes bounce {
+      0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
+      30% { transform: translateY(-4px); opacity: 1; }
+    }
+    .welcome {
+      text-align: center;
+      padding: 36px 18px;
+      max-width: 540px;
+      margin: auto;
+    }
+    .welcome .logo-big {
+      width: 68px; height: 68px;
+      margin: 0 auto 16px;
+      background: #0a0a0a;
+      border: 2px solid var(--accent);
+      border-radius: 16px;
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 900; font-size: 22px; color: var(--accent);
+    }
+    .welcome h2 { font-size: 1.3rem; margin-bottom: 7px; }
+    .welcome p { color: var(--muted); font-size: 0.88rem; line-height: 1.5; }
+    .quick-prompts {
+      display: flex; flex-wrap: wrap; gap: 7px;
+      justify-content: center; margin-top: 18px;
+    }
+    .quick-prompts button {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 7px 11px;
+      border-radius: 18px;
+      font-size: 0.78rem;
+      cursor: pointer;
+    }
+    .quick-prompts button:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+    .alert {
+      background: #1a1510;
+      border: 1px solid #5c4030;
+      color: var(--warn);
+      padding: 10px 12px;
+      border-radius: 9px;
+      font-size: 0.78rem;
+      line-height: 1.45;
+      margin-bottom: 10px;
+    }
+    .alert.ok {
+      background: #0f1a14;
+      border-color: #1a4a30;
+      color: var(--accent);
+    }
+    .step {
+      font-size: 0.76rem;
+      color: var(--muted);
+      line-height: 1.55;
+      margin-top: 6px;
+    }
+    code {
+      background: var(--surface2);
+      padding: 1px 5px;
+      border-radius: 4px;
+      font-size: 0.72rem;
+    }
+    @media (max-width: 800px) {
+      .sidebar { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="logo">BAI</div>
+    <div class="brand">
+      <h1>Beray AI</h1>
+      <span>Supabase + Ollama</span>
+    </div>
+    <div class="status">
+      <div class="status-dot" id="statusDot"></div>
+      <span id="statusText">Yükleniyor...</span>
+    </div>
+  </header>
+
+  <div class="main">
+    <aside class="sidebar">
+      <div class="sidebar-section">
+        <h3>Bağlantı</h3>
+        <div id="connectionBox" class="alert">Kontrol ediliyor...</div>
+        <button class="btn btn-check" id="checkBtn">Tekrar Kontrol Et</button>
+      </div>
+
+      <div class="sidebar-section">
+        <h3>Ollama Adresi (Supabase’den)</h3>
+        <div class="step" style="margin-bottom:8px">
+          Tunnel açtıktan sonra çıkan linki buraya yapıştır → Kaydet.
+          Örnek: <code>https://xxxx.trycloudflare.com/v1</code>
+        </div>
+        <div class="config-row">
+          <label>Ollama URL</label>
+          <input type="text" id="baseUrl" placeholder="http://localhost:11434/v1" />
+        </div>
+        <div class="config-row">
+          <label>Model</label>
+          <input type="text" id="model" value="qwen2.5:14b" />
+        </div>
+        <div class="config-row" style="margin-top:10px">
+          <button class="btn" id="saveConfig">Kaydet (Supabase’e de yazar)</button>
+          <button class="btn btn-outline" id="clearChat">Sohbeti Temizle</button>
+        </div>
+      </div>
+
+      <div class="sidebar-section">
+        <h3>Nasıl Kullanılır?</h3>
+        <div class="step">
+          <b>1.</b> Ollama açık olsun<br>
+          <b>2.</b> İstersen tunnel aç:<br>
+          <code style="font-size:0.65rem">cloudflared tunnel --url http://localhost:11434 --http-host-header localhost:11434</code><br><br>
+          <b>3.</b> Çıkan linkin sonuna <code>/v1</code> ekle<br>
+          <b>4.</b> Yukarıdaki kutuya yapıştır → Kaydet<br>
+          <b>5.</b> Soru sor
+        </div>
+      </div>
+    </aside>
+
+    <div class="chat-area">
+      <div class="messages" id="messages">
+        <div class="welcome" id="welcome">
+          <div class="logo-big">BAI</div>
+          <h2>Beray AI</h2>
+          <p>
+            Supabase bağlı.<br>
+            Ollama adresini sol menüden ayarla ve soru sor.
+          </p>
+          <div class="quick-prompts">
+            <button data-q="Merhaba, kendini tanıt.">Merhaba</button>
+            <button data-q="Bugün nasılsın?">Nasılsın?</button>
+            <button data-q="Kısaca ne yapabilirsin?">Ne yapabilirsin?</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="input-area">
+        <div class="input-wrapper">
+          <textarea id="userInput" rows="1" placeholder="Mesajını yaz..."></textarea>
+          <button class="send-btn" id="sendBtn">↑</button>
+        </div>
+        <div class="hint">Supabase + Ollama • Bilgisayar açık kaldığı sürece çalışır</div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ========== SUPABASE ==========
+    const SUPABASE_URL = "https://bjzgbqazezjboskcaqrh.supabase.co";
+    const SUPABASE_KEY = "sb_publishable_u9ctUFj6Hu9qBrXShO5jaw__Pw-aGux";
+    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    const SYSTEM_PROMPT = `Sen Beray AI’sın (logo: BAI). Samimi, net, zeki ve yardımcı bir asistanısın.
+
+Kurallar:
+- Türkçe konuş.
+- Kısa ve öz cevap ver.
+- Uydurma yapma. Bilmediğin şeyi “emin değilim” de.
+- Samimi ve akıllı konuş.`;
+
+    let messages = [];
+    let isBusy = false;
+    let isOnline = false;
+    let sessionId = localStorage.getItem("beray_session") || crypto.randomUUID();
+    localStorage.setItem("beray_session", sessionId);
+
+    const $ = id => document.getElementById(id);
+    const messagesEl = $("messages");
+    const inputEl = $("userInput");
+    const sendBtn = $("sendBtn");
+
+    // ========== Supabase'den Ollama URL yükle ==========
+    async function loadConfigFromSupabase() {
+      try {
+        const { data, error } = await supabase
+          .from("config")
+          .select("value")
+          .eq("key", "ollama_url")
+          .single();
+
+        if (data?.value) {
+          $("baseUrl").value = data.value;
+          console.log("Supabase'den yüklendi:", data.value);
+        } else {
+          $("baseUrl").value = "http://localhost:11434/v1";
+        }
+      } catch (e) {
+        console.warn("Config yüklenemedi:", e);
+        $("baseUrl").value = "http://localhost:11434/v1";
+      }
+
+      // Model localStorage'dan
+      try {
+        const s = JSON.parse(localStorage.getItem("beray_final_settings") || "{}");
+        if (s.model) $("model").value = s.model;
+      } catch(e) {}
+    }
+
+    // ========== Supabase'e Ollama URL kaydet ==========
+    async function saveConfigToSupabase(url) {
+      try {
+        const { error } = await supabase
+          .from("config")
+          .upsert({ key: "ollama_url", value: url, updated_at: new Date().toISOString() });
+        if (error) throw error;
+        return true;
+      } catch (e) {
+        console.warn("Supabase kayıt hatası:", e);
+        return false;
+      }
+    }
+
+    function setStatus(text, online = false) {
+      $("statusText").textContent = text;
+      $("statusDot").className = "status-dot" + (online ? " online" : "");
+      isOnline = online;
+    }
+
+    function updateConnectionBox(ok, detail = "") {
+      const box = $("connectionBox");
+      if (ok) {
+        box.className = "alert ok";
+        box.innerHTML = "✓ Ollama bağlı<br><small>" + detail + "</small>";
+      } else {
+        box.className = "alert";
+        box.innerHTML = "Ollama bağlı değil<br><small>" + detail + "</small>";
+      }
+    }
+
+    async function checkOllama() {
+      let base = ($("baseUrl").value.trim() || "http://localhost:11434/v1");
+      // /v1 varsa kaldır, /api/tags için
+      const checkBase = base.replace(/\/v1\/?$/, "");
+      setStatus("Kontrol ediliyor...");
+      try {
+        const res = await fetch(checkBase + "/api/tags", { mode: "cors" });
+        if (!res.ok) throw new Error("HTTP " + res.status);
+        const data = await res.json();
+        const models = (data.models || []).map(m => m.name).slice(0, 3).join(", ") || "model yok";
+        setStatus("Bağlı", true);
+        updateConnectionBox(true, models);
+        return true;
+      } catch (err) {
+        setStatus("Bağlı değil");
+        updateConnectionBox(false, "Adresi kontrol et veya tunnel aç");
+        return false;
+      }
+    }
+
+    function addMessage(role, content, save = true) {
+      const welcome = $("welcome");
+      if (welcome) welcome.remove();
+
+      const msg = document.createElement("div");
+      msg.className = `msg ${role}`;
+      const avatar = role === "user" ? "SEN" : "BAI";
+      msg.innerHTML = `
+        <div class="avatar">${avatar}</div>
+        <div class="bubble">${formatText(content)}</div>
+      `;
+      messagesEl.appendChild(msg);
+      messagesEl.scrollTop = messagesEl.scrollHeight;
+
+      if (save) {
+        messages.push({ role: role === "user" ? "user" : "assistant", content });
+        saveToSupabase(role === "user" ? "user" : "assistant", content);
+      }
+    }
+
+    function formatText(text) {
+      return text
+        .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+        .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
+        .replace(/`(.*?)`/g, "<code>$1</code>")
+        .replace(/\n/g, "<br>");
+    }
+
+    async function saveToSupabase(role, content) {
+      try {
+        await supabase.from("chats").insert({
+          session_id: sessionId,
+          role,
+          content
+        });
+      } catch (e) {
+        console.warn("Chat kayıt hatası:", e);
+      }
+    }
+
+    function addTyping() {
+      const msg = document.createElement("div");
+      msg.className = "msg ai";
+      msg.id = "typing";
+      msg.innerHTML = `
+        <div class="avatar">BAI</div>
+        <div class="bubble"><div class="typing"><span></span><span></span><span></span></div></div>
+      `;
+      messagesEl.appendChild(msg);
+      messagesEl.scrollTop = messagesEl.scrollHeight;
+    }
+
+    function removeTyping() {
+      const t = $("typing");
+      if (t) t.remove();
+    }
+
+    async function callBeray(userText) {
+      let baseUrl = ($("baseUrl").value.trim() || "http://localhost:11434/v1");
+      if (!baseUrl.endsWith("/v1") && !baseUrl.includes("/v1")) {
+        baseUrl = baseUrl.replace(/\/$/, "") + "/v1";
+      }
+      const model = $("model").value.trim() || "qwen2.5:14b";
+
+      if (!isOnline) {
+        addMessage("ai", "Ollama bağlı değil.\n\nSol menüden adresi kontrol et veya tunnel’ı açıp linki yapıştır.", false);
+        return;
+      }
+
+      const payload = {
+        model,
+        messages: [
+          { role: "system", content: SYSTEM_PROMPT },
+          ...messages.map(m => ({ role: m.role, content: m.content })),
+          { role: "user", content: userText }
+        ],
+        temperature: 0.65,
+        stream: false
+      };
+
+      setStatus("Düşünüyor...", true);
+      addTyping();
+      isBusy = true;
+      sendBtn.disabled = true;
+
+      try {
+        const res = await fetch(baseUrl + "/chat/completions", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        });
+
+        if (!res.ok) {
+          const errText = await res.text();
+          throw new Error("Hata " + res.status + ": " + errText.slice(0, 150));
+        }
+
+        const data = await res.json();
+        const reply = data.choices?.[0]?.message?.content || "Boş cevap.";
+
+        removeTyping();
+        addMessage("ai", reply);
+        setStatus("Bağlı", true);
+      } catch (err) {
+        removeTyping();
+        addMessage("ai", "Hata: " + err.message, false);
+        setStatus("Hata");
+      } finally {
+        isBusy = false;
+        sendBtn.disabled = false;
+      }
+    }
+
+    function send() {
+      const text = inputEl.value.trim();
+      if (!text || isBusy) return;
+      inputEl.value = "";
+      inputEl.style.height = "auto";
+      addMessage("user", text);
+      callBeray(text);
+    }
+
+    sendBtn.addEventListener("click", send);
+    inputEl.addEventListener("keydown", e => {
+      if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        send();
+      }
+    });
+    inputEl.addEventListener("input", () => {
+      inputEl.style.height = "auto";
+      inputEl.style.height = Math.min(inputEl.scrollHeight, 130) + "px";
+    });
+
+    document.querySelectorAll(".quick-prompts button").forEach(btn => {
+      btn.addEventListener("click", () => {
+        inputEl.value = btn.dataset.q;
+        send();
+      });
+    });
+
+    $("saveConfig").addEventListener("click", async () => {
+      const url = $("baseUrl").value.trim();
+      const model = $("model").value.trim();
+
+      localStorage.setItem("beray_final_settings", JSON.stringify({ model }));
+
+      const ok = await saveConfigToSupabase(url);
+      setStatus(ok ? "Supabase’e kaydedildi" : "Kayıt hatası", isOnline);
+      setTimeout(() => checkOllama(), 500);
+    });
+
+    $("clearChat").addEventListener("click", () => {
+      sessionId = crypto.randomUUID();
+      localStorage.setItem("beray_session", sessionId);
+      location.reload();
+    });
+
+    $("checkBtn").addEventListener("click", checkOllama);
+
+    // Başlat
+    (async () => {
+      await loadConfigFromSupabase();
+      await checkOllama();
+    })();
+  </script>
+</body>
+</html>
